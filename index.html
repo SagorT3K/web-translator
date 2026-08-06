@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Web Translator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    color: #e8eef2;
+  }
+  .card {
+    width: 100%;
+    max-width: 960px;
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  }
+  h1 {
+    font-size: 1.7rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    background: linear-gradient(90deg, #6dd5fa, #c084fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: #9db2c0; font-size: 0.9rem; margin-bottom: 24px; }
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  select {
+    flex: 1;
+    min-width: 140px;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.08) url("data:image/svg+xml;utf8,<svg fill='%23e8eef2' height='16' viewBox='0 0 24 24' width='16' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") no-repeat right 12px center;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    color: #e8eef2;
+    font-size: 0.95rem;
+    padding: 11px 36px 11px 14px;
+    cursor: pointer;
+  }
+  select:focus { outline: none; border-color: #6dd5fa; }
+  select option { background: #1b2b36; color: #e8eef2; }
+  .swap {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    color: #6dd5fa;
+    font-size: 1.2rem;
+    width: 42px;
+    height: 42px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .swap:hover { background: rgba(109, 213, 250, 0.15); transform: rotate(180deg); }
+  .panes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .panes { grid-template-columns: 1fr; } }
+  textarea {
+    width: 100%;
+    height: 220px;
+    resize: vertical;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    color: #e8eef2;
+    font-size: 1rem;
+    line-height: 1.55;
+    padding: 14px;
+  }
+  textarea:focus { outline: none; border-color: #6dd5fa; }
+  textarea::placeholder { color: #6d8291; }
+  textarea[readonly] { background: rgba(255, 255, 255, 0.03); }
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #8fa5b3;
+  }
+  .actions { display: flex; gap: 8px; }
+  .icon-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #a8c4d4;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .icon-btn:hover { background: rgba(109, 213, 250, 0.15); color: #6dd5fa; }
+  .translate-btn {
+    margin-top: 18px;
+    width: 100%;
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #0b1a22;
+    background: linear-gradient(90deg, #6dd5fa, #c084fc);
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .translate-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(109, 213, 250, 0.35); }
+  .translate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+  .status { margin-top: 12px; text-align: center; font-size: 0.85rem; min-height: 1.2em; }
+  .status.error { color: #ff8a8a; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Web Translator</h1>
+    <p class="subtitle">Instant translation powered by MyMemory (free)</p>
+
+    <div class="controls">
+      <select id="sourceLang">
+        <option value="auto">Auto-detect</option>
+      </select>
+      <button class="swap" id="swapBtn" title="Swap languages">⇅</button>
+      <select id="targetLang"></select>
+    </div>
+
+    <div class="panes">
+      <div>
+        <textarea id="sourceText" placeholder="Enter text to translate…" maxlength="5000"></textarea>
+        <div class="meta">
+          <span id="charCount">0 / 5000</span>
+          <div class="actions">
+            <button class="icon-btn" id="clearBtn">Clear</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <textarea id="resultText" placeholder="Translation appears here…" readonly></textarea>
+        <div class="meta">
+          <span id="detectedLabel"></span>
+          <div class="actions">
+            <button class="icon-btn" id="copyBtn">Copy</button>
+            <button class="icon-btn" id="speakBtn">🔊 Speak</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="translate-btn" id="translateBtn">Translate</button>
+    <p class="status" id="status"></p>
+  </div>
+
+<script>
+const LANGUAGES = [
+  ["af", "Afrikaans"], ["sq", "Albanian"], ["am", "Amharic"], ["ar", "Arabic"],
+  ["hy", "Armenian"], ["az", "Azerbaijani"], ["eu", "Basque"], ["be", "Belarusian"],
+  ["bn", "Bengali"], ["bs", "Bosnian"], ["bg", "Bulgarian"], ["ca", "Catalan"],
+  ["ceb", "Cebuano"], ["ny", "Chichewa"], ["zh-CN", "Chinese (Simplified)"],
+  ["zh-TW", "Chinese (Traditional)"], ["co", "Corsican"], ["hr", "Croatian"],
+  ["cs", "Czech"], ["da", "Danish"], ["nl", "Dutch"], ["en", "English"],
+  ["eo", "Esperanto"], ["et", "Estonian"], ["tl", "Filipino"], ["fi", "Finnish"],
+  ["fr", "French"], ["fy", "Frisian"], ["gl", "Galician"], ["ka", "Georgian"],
+  ["de", "German"], ["el", "Greek"], ["gu", "Gujarati"], ["ht", "Haitian Creole"],
+  ["ha", "Hausa"], ["haw", "Hawaiian"], ["he", "Hebrew"], ["hi", "Hindi"],
+  ["hmn", "Hmong"], ["hu", "Hungarian"], ["is", "Icelandic"], ["ig", "Igbo"],
+  ["id", "Indonesian"], ["ga", "Irish"], ["it", "Italian"], ["ja", "Japanese"],
+  ["jw", "Javanese"], ["kn", "Kannada"], ["kk", "Kazakh"], ["km", "Khmer"],
+  ["rw", "Kinyarwanda"], ["ko", "Korean"], ["ku", "Kurdish (Kurmanji)"],
+  ["ky", "Kyrgyz"], ["lo", "Lao"], ["la", "Latin"], ["lv", "Latvian"],
+  ["lt", "Lithuanian"], ["lb", "Luxembourgish"], ["mk", "Macedonian"],
+  ["mg", "Malagasy"], ["ms", "Malay"], ["ml", "Malayalam"], ["mt", "Maltese"],
+  ["mi", "Maori"], ["mr", "Marathi"], ["mn", "Mongolian"], ["my", "Myanmar (Burmese)"],
+  ["ne", "Nepali"], ["no", "Norwegian"], ["or", "Odia"], ["ps", "Pashto"],
+  ["fa", "Persian"], ["pl", "Polish"], ["pt", "Portuguese"], ["pa", "Punjabi"],
+  ["ro", "Romanian"], ["ru", "Russian"], ["sm", "Samoan"], ["gd", "Scots Gaelic"],
+  ["sr", "Serbian"], ["st", "Sesotho"], ["sn", "Shona"], ["sd", "Sindhi"],
+  ["si", "Sinhala"], ["sk", "Slovak"], ["sl", "Slovenian"], ["so", "Somali"],
+  ["es", "Spanish"], ["su", "Sundanese"], ["sw", "Swahili"], ["sv", "Swedish"],
+  ["tg", "Tajik"], ["ta", "Tamil"], ["tt", "Tatar"], ["te", "Telugu"],
+  ["th", "Thai"], ["tr", "Turkish"], ["tk", "Turkmen"], ["uk", "Ukrainian"],
+  ["ur", "Urdu"], ["ug", "Uyghur"], ["uz", "Uzbek"], ["vi", "Vietnamese"],
+  ["cy", "Welsh"], ["xh", "Xhosa"], ["yi", "Yiddish"], ["yo", "Yoruba"],
+  ["zu", "Zulu"]
+];
+
+const sourceSel = document.getElementById('sourceLang');
+const targetSel = document.getElementById('targetLang');
+const sourceText = document.getElementById('sourceText');
+const resultText = document.getElementById('resultText');
+const translateBtn = document.getElementById('translateBtn');
+const swapBtn = document.getElementById('swapBtn');
+const clearBtn = document.getElementById('clearBtn');
+const copyBtn = document.getElementById('copyBtn');
+const speakBtn = document.getElementById('speakBtn');
+const charCount = document.getElementById('charCount');
+const detectedLabel = document.getElementById('detectedLabel');
+const statusEl = document.getElementById('status');
+
+LANGUAGES.forEach(([code, name]) => {
+  sourceSel.add(new Option(name, code));
+  targetSel.add(new Option(name, code));
+});
+sourceSel.value = 'auto';
+targetSel.value = 'en';
+targetSel.selectedOptions[0]?.setAttribute('data-default', '');
+
+sourceText.addEventListener('input', () => {
+  charCount.textContent = `${sourceText.value.length} / 5000`;
+});
+
+clearBtn.addEventListener('click', () => {
+  sourceText.value = '';
+  resultText.value = '';
+  charCount.textContent = '0 / 5000';
+  detectedLabel.textContent = '';
+  setStatus('');
+});
+
+copyBtn.addEventListener('click', async () => {
+  if (!resultText.value) return;
+  await navigator.clipboard.writeText(resultText.value);
+  setStatus('Copied to clipboard ✓');
+  setTimeout(() => setStatus(''), 1500);
+});
+
+// Warm up the voice list — Chrome populates it asynchronously on first access
+const ttsSupported = 'speechSynthesis' in window;
+if (!ttsSupported) speakBtn.disabled = true;
+let cachedVoices = [];
+function loadVoices() {
+  cachedVoices = ttsSupported ? speechSynthesis.getVoices().filter(v => v.lang) : [];
+  return cachedVoices;
+}
+loadVoices();
+speechSynthesis.onvoiceschanged = loadVoices;
+
+let speaking = false;
+speakBtn.addEventListener('click', async () => {
+  if (!resultText.value) return;
+
+  if (speaking) {
+    speechSynthesis.cancel();
+    return;
+  }
+
+  // Ensure voices are actually available (retry a few times if list still empty)
+  let voices = loadVoices();
+  if (!voices.length) {
+    for (let i = 0; i < 10 && !voices.length; i++) {
+      await new Promise(r => setTimeout(r, 150));
+      voices = loadVoices();
+    }
+  }
+  if (!voices.length) {
+    setStatus('Speech not available: your browser has no TTS voices installed.', true);
+    return;
+  }
+
+  const code = toSpeechCode(targetSel.value);
+  // Best match: exact lang (e.g. "fr-CA" for "fr"), then same base language, then any voice
+  const base = code.split('-')[0].toLowerCase();
+  const voice =
+    voices.find(v => v.lang.toLowerCase().startsWith(code.toLowerCase())) ||
+    voices.find(v => v.lang.toLowerCase().split('-')[0] === base) ||
+    null;
+
+  const u = new SpeechSynthesisUtterance(resultText.value);
+  u.lang = code;
+  if (voice) u.voice = voice;
+
+  speaking = true;
+  speakBtn.textContent = '⏹ Stop';
+  const done = () => { speaking = false; speakBtn.textContent = '🔊 Speak'; };
+  u.onend = done;
+  u.onerror = (e) => {
+    done();
+    if (e.error !== 'canceled' && e.error !== 'interrupted') {
+      setStatus('Speech error: ' + e.error, true);
+    }
+  };
+
+  speechSynthesis.cancel(); // clear any stale queue
+  speechSynthesis.speak(u);
+});
+
+// Map translation codes to BCP-47 codes the Web Speech API understands
+function toSpeechCode(code) {
+  const map = { 'zh-CN': 'zh-CN', 'zh-TW': 'zh-TW', he: 'he', jw: 'jv', tl: 'fil' };
+  return map[code] || code;
+}
+
+swapBtn.addEventListener('click', () => {
+  if (sourceSel.value === 'auto') return; // can't swap into auto
+  [sourceSel.value, targetSel.value] = [targetSel.value, sourceSel.value];
+  if (resultText.value) {
+    sourceText.value = resultText.value;
+    resultText.value = '';
+    charCount.textContent = `${sourceText.value.length} / 5000`;
+  }
+});
+
+async function translate() {
+  const text = sourceText.value.trim();
+  if (!text) { setStatus('Please enter some text.', true); return; }
+
+  translateBtn.disabled = true;
+  setStatus('Translating…');
+  detectedLabel.textContent = '';
+
+  try {
+    const tl = targetSel.value;
+    // Chunk text so long inputs stay under URL limits
+    const chunks = chunkText(text, 1500);
+    let lastDetected = null;
+    const parts = [];
+    for (const chunk of chunks) {
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceSel.value}&tl=${tl}&dt=t&q=${encodeURIComponent(chunk)}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Translation service unavailable (HTTP ' + res.status + ')');
+      const data = await res.json();
+      parts.push((data[0] || []).map(seg => seg[0] || '').join(''));
+      if (data[2]) lastDetected = data[2];
+    }
+
+    resultText.value = parts.join('');
+    if (sourceSel.value === 'auto' && lastDetected) {
+      const name = LANGUAGES.find(l => l[0] === lastDetected)?.[1] || lastDetected;
+      detectedLabel.textContent = `Detected: ${name}`;
+    }
+    setStatus('');
+  } catch (err) {
+    setStatus('Error: ' + err.message, true);
+  } finally {
+    translateBtn.disabled = false;
+  }
+}
+
+// Split on sentence/line boundaries so chunks stay under maxLen without cutting mid-word when possible
+function chunkText(text, maxLen) {
+  const chunks = [];
+  let current = '';
+  for (const piece of text.split(/(?<=[.!?\n])\s+/)) {
+    if ((current + ' ' + piece).trim().length > maxLen && current) {
+      chunks.push(current);
+      current = piece;
+    } else {
+      current = current ? current + ' ' + piece : piece;
+    }
+  }
+  if (current) chunks.push(current);
+  // Hard-split any oversize chunk
+  return chunks.flatMap(c => {
+    const out = [];
+    while (c.length > maxLen) { out.push(c.slice(0, maxLen)); c = c.slice(maxLen); }
+    out.push(c);
+    return out;
+  });
+}
+
+function setStatus(msg, isError = false) {
+  statusEl.textContent = msg;
+  statusEl.className = 'status' + (isError ? ' error' : '');
+}
+
+translateBtn.addEventListener('click', translate);
+sourceText.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') translate();
+});
+</script>
+</body>
+</html>
